@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useScreenRecorder } from '../hooks/useScreenRecorder.js';
 import { useWebcam } from '../hooks/useWebcam.js';
 import RecordingControls from '../components/RecordingControls.jsx';
@@ -7,6 +7,7 @@ import { ArrowLeftIcon, PlayIcon, WebcamIcon } from '../components/icons.jsx';
 
 export default function RecordPage() {
   const canvasRef = useRef(null);
+  const navigate = useNavigate();
   const { webcamEnabled, webcamStream, toggleWebcam } = useWebcam();
   const {
     status,
@@ -14,9 +15,17 @@ export default function RecordPage() {
     elapsedSeconds,
     micActive,
     captureError,
+    uploadProgress,
+    completedRecordingId,
     startRecording,
     stopRecording,
   } = useScreenRecorder({ canvasRef, webcamStream, webcamEnabled });
+
+  useEffect(() => {
+    if (status === 'done' && completedRecordingId) {
+      navigate(`/?highlight=${completedRecordingId}`, { replace: true });
+    }
+  }, [status, completedRecordingId, navigate]);
 
   const isRecording = status === 'recording';
   const isCapturing = status === 'countdown' || status === 'recording';
@@ -130,8 +139,16 @@ export default function RecordPage() {
               Uploading &amp; encoding{'\u2026'}
             </p>
             <div className="progress-track h-1 w-full">
-              <span className="progress-bar" />
+              <span
+                className="progress-bar-determinate"
+                style={{ width: `${uploadProgress}%` }}
+              />
             </div>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {uploadProgress < 100
+                ? `Uploading ${uploadProgress}%`
+                : 'Encoding on server\u2026'}
+            </p>
           </div>
         )}
 
