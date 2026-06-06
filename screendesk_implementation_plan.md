@@ -176,6 +176,7 @@ CREATE TABLE recordings (
   duration    INTEGER,                   -- Seconds (nullable until FFmpeg completes)
   size_bytes  INTEGER,                   -- File size in bytes
   has_webcam  INTEGER NOT NULL DEFAULT 0, -- Boolean (0/1)
+  status      TEXT NOT NULL DEFAULT 'ready', -- processing | ready | error
   created_at  TEXT NOT NULL              -- ISO 8601 datetime
 );
 ```
@@ -332,7 +333,7 @@ Poll processing status while FFmpeg runs.
 
 > Each phase is independently shippable. Complete all checklist items before moving to the next phase.
 
-**Current progress (2026-06-06):** Phase 0 complete. Phase 1 complete (monorepo, Express server, SQLite, `GET /api/recordings`). Phases 2–3 not started. Phase 4 library UI complete with mocked API. Phase 5 partially complete (UI polish from Phase 0). Phase 6 not started. **Next up:** Phase 2 — real screen/webcam capture, or wire `api.js` to the live backend.
+**Current progress (2026-06-06):** Phase 0 complete. Phase 1 complete (monorepo, Express server, SQLite, `GET /api/recordings`). Phase 2 complete (real screen/webcam capture, canvas compositing, live preview). Phase 3 complete (MediaRecorder, upload, FFmpeg conversion, status polling). Phase 4 library UI complete; `fetchRecordings` wired to real API; stream/playback still pending. Phase 5 partially complete. Phase 6 not started. **Next up:** Phase 4 — library stream endpoint and video playback.
 
 ---
 
@@ -358,12 +359,11 @@ Poll processing status while FFmpeg runs.
 - [x] Vite dev-server proxy `/api` → `localhost:3000` (ready for backend)
 - [x] Favicon and responsive layout (1 / 2 / 3 column grid)
 
-**Structural note:** Frontend files live at the repo root (`src/`, `index.html`, etc.) rather than in a `client/` subdirectory. A `client/` folder will be introduced when the monorepo is set up in Phase 1, or the plan can be updated to keep the flat layout.
+**Structural note:** Phase 0 scaffolded the frontend at the repo root; Phase 1 moved it into the `client/` workspace.
 
 **Not in scope (deferred to later phases):**
-- Real `getDisplayMedia` / `getUserMedia` / `MediaRecorder` / canvas compositing
-- Real uploads or server API calls
-- `uploadRecording` is defined in `api.js` but not yet wired from `useScreenRecorder.stopRecording()`
+- Real `getDisplayMedia` / `getUserMedia` / canvas compositing — *done in Phase 2*
+- Real `MediaRecorder` recording and uploads — *done in Phase 3*
 
 ---
 
@@ -384,59 +384,63 @@ Poll processing status while FFmpeg runs.
 
 ---
 
-### Phase 2 — Screen + Webcam Capture
+### Phase 2 — Screen + Webcam Capture ✅
 
 **Goal:** Browser successfully captures screen and webcam and composites them on a canvas.
 
-- [ ] Implement `useScreenRecorder.js` hook:
-  - [ ] `startCapture()` calls `navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })`
-  - [ ] Returns a `MediaStream` and `stop()` function
-  - [ ] Handle user cancellation (when user dismisses the browser dialog)
-- [ ] Implement `useWebcam.js` hook:
-  - [ ] `startWebcam()` calls `getUserMedia({ video: true, audio: false })`
-  - [ ] `stopWebcam()` releases the stream
-  - [ ] Expose `enabled` toggle state
-- [ ] Implement `canvasCompositor.js`:
-  - [ ] Creates an offscreen `<canvas>` at screen resolution
-  - [ ] Uses `requestAnimationFrame` loop to draw screen frame, then webcam PiP (bottom-right, 20% width, rounded rect)
-  - [ ] Exports `startCompositing(screenStream, webcamStream, canvas)` and `stop()`
-- [ ] Implement `useScreenRecorder.js` mic capture:
-  - [ ] `getUserMedia({ audio: true, video: false })` for microphone
-  - [ ] Mix mic track into the final `MediaStream` passed to `MediaRecorder`
-- [ ] Build `RecordPage.jsx`:
-  - [ ] Show canvas preview live
-  - [ ] Webcam toggle button (shows/hides PiP)
-  - [ ] Recording timer (updates every second while recording)
-- [ ] Verify: screen + webcam visible in canvas preview, mic input detected
+> Completed 2026-06-06 via PR #4 / issue #3. Stop returns to idle; MediaRecorder and upload deferred to Phase 3.
+
+- [x] Implement `useScreenRecorder.js` hook:
+  - [x] `startCapture()` calls `navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })`
+  - [x] Returns a `MediaStream` and `stop()` function
+  - [x] Handle user cancellation (when user dismisses the browser dialog)
+- [x] Implement `useWebcam.js` hook:
+  - [x] `startWebcam()` calls `getUserMedia({ video: true, audio: false })`
+  - [x] `stopWebcam()` releases the stream
+  - [x] Expose `enabled` toggle state
+- [x] Implement `canvasCompositor.js`:
+  - [x] Creates an offscreen `<canvas>` at screen resolution — *visible `<canvas>` on `RecordPage` at native screen resolution*
+  - [x] Uses `requestAnimationFrame` loop to draw screen frame, then webcam PiP (bottom-right, 20% width, rounded rect)
+  - [x] Exports `startCompositing(screenStream, webcamStream, canvas)` and `stop()`
+- [x] Implement `useScreenRecorder.js` mic capture:
+  - [x] `getUserMedia({ audio: true, video: false })` for microphone
+  - [x] Mix mic track into the final `MediaStream` passed to `MediaRecorder` — *via `getOutputStream()`; MediaRecorder wiring in Phase 3*
+- [x] Build `RecordPage.jsx`:
+  - [x] Show canvas preview live
+  - [x] Webcam toggle button (shows/hides PiP)
+  - [x] Recording timer (updates every second while recording)
+- [x] Verify: screen + webcam visible in canvas preview, mic input detected
 
 ---
 
-### Phase 3 — Record, Upload & Convert
+### Phase 3 — Record, Upload & Convert ✅
 
 **Goal:** Full record → upload → FFmpeg → MP4 pipeline working end to end.
 
-- [ ] Add `MediaRecorder` to `useScreenRecorder.js`:
-  - [ ] Record canvas stream + mic as `video/webm;codecs=vp9,opus`
-  - [ ] Collect `ondataavailable` chunks into array
-  - [ ] On `onstop`, assemble `Blob` and call `uploadBlob(blob)`
-- [ ] Implement `uploadBlob()` in `utils/api.js`:
-  - [ ] POST `FormData` with `video` file, `has_webcam`, `duration` to `/api/upload`
-  - [ ] Show upload progress (use `XMLHttpRequest` with `onprogress`)
-- [ ] Implement `POST /api/upload` on server:
-  - [ ] `multer` saves `.webm` to `tmp/`
-  - [ ] Generate UUID, build output filename `rec_<timestamp>.mp4`
-  - [ ] Insert row in SQLite with `status = "processing"`
-  - [ ] Respond `202` immediately (non-blocking)
-  - [ ] Run FFmpeg conversion asynchronously:
+> Completed 2026-06-06 via issue #5. FFmpeg bundled via `ffmpeg-static` (no manual install). `uploadRecording` in `api.js` replaces the plan's `uploadBlob` name.
+
+- [x] Add `MediaRecorder` to `useScreenRecorder.js`:
+  - [x] Record canvas stream + mic as `video/webm;codecs=vp9,opus` — *vp8 fallback if vp9 unsupported*
+  - [x] Collect `ondataavailable` chunks into array
+  - [x] On `onstop`, assemble `Blob` and call `uploadRecording(blob)`
+- [x] Implement `uploadRecording()` in `utils/api.js`:
+  - [x] POST `FormData` with `video` file, `has_webcam`, `duration` to `/api/upload`
+  - [x] Show upload progress (use `XMLHttpRequest` with `onprogress`)
+- [x] Implement `POST /api/upload` on server:
+  - [x] `multer` saves `.webm` to `tmp/`
+  - [x] Generate UUID, build output filename `rec_<timestamp>.mp4`
+  - [x] Insert row in SQLite with `status = "processing"`
+  - [x] Respond `202` immediately (non-blocking)
+  - [x] Run FFmpeg conversion asynchronously:
     ```
     ffmpeg -i input.webm -c:v libx264 -preset fast -crf 22 -c:a aac -movflags +faststart output.mp4
     ```
-  - [ ] On FFmpeg success: update SQLite row with size, duration, `status = "ready"`, delete `.webm`
-  - [ ] On FFmpeg error: set `status = "error"` in DB
-- [ ] Implement `GET /api/recordings/:id/status` for polling
-- [ ] Frontend polls status every 2s after upload until `ready` or `error`
-- [ ] On `ready`, navigate to Library and highlight new recording
-- [ ] Verify: full flow — record 10s → stop → upload → MP4 appears in library
+  - [x] On FFmpeg success: update SQLite row with size, duration, `status = "ready"`, delete `.webm`
+  - [x] On FFmpeg error: set `status = "error"` in DB
+- [x] Implement `GET /api/recordings/:id/status` for polling
+- [x] Frontend polls status every 2s after upload until `ready` or `error`
+- [x] On `ready`, navigate to Library and highlight new recording
+- [x] Verify: full flow — record 10s → stop → upload → MP4 appears in library
 
 ---
 
@@ -444,14 +448,14 @@ Poll processing status while FFmpeg runs.
 
 **Goal:** All recordings browsable and playable in the UI.
 
-- [ ] Implement `GET /api/recordings` (newest first, all fields)
+- [x] Implement `GET /api/recordings` (newest first, all fields) — *Phase 1/3; includes `status` column*
 - [ ] Implement `GET /api/recordings/:id/stream` with byte-range support:
   - [ ] Use `fs.stat` + `res.setHeader('Content-Type', 'video/mp4')`
   - [ ] Parse `Range` header and respond with `206 Partial Content`
-- [x] Build `useRecordings.js` hook — *Phase 0 (mocked API; swap `api.js` for real fetch when backend is ready)*
+- [x] Build `useRecordings.js` hook — *Phase 0; `fetchRecordings` wired to real API in Phase 3*
   - [x] `fetchAll()` on mount, returns list
-  - [x] `deleteRecording(id)` — *mocked DELETE*
-  - [x] `renameRecording(id, title)` — *mocked PATCH*
+  - [x] `deleteRecording(id)` — *mocked DELETE; real endpoint in Phase 4*
+  - [x] `renameRecording(id, title)` — *mocked PATCH; real endpoint in Phase 4*
 - [x] Build `LibraryPage.jsx` — *Phase 0*
   - [x] Responsive grid (3 cols desktop, 2 cols tablet, 1 col mobile)
   - [x] `RecordingCard` for each recording with: title, date, duration, file size, webcam badge
@@ -479,7 +483,7 @@ Poll processing status while FFmpeg runs.
 - [ ] Show error toast if screen capture permission is denied
 - [ ] Show error toast if microphone permission is denied (and allow recording without mic)
 - [ ] Handle FFmpeg conversion failure: show error badge on card, allow deletion — *`StatusBadge` component exists; not wired to real error state yet*
-- [x] Show upload progress bar during large file uploads — *Phase 0 UI animation on RecordPage `uploading` state (mock)*
+- [x] Show upload progress bar during large file uploads — *Phase 3 real XHR progress on RecordPage*
 - [ ] Prevent navigating away during an active recording (browser `beforeunload` warning)
 - [x] Add recording countdown (3-2-1) before capture starts — *Phase 0 stub in `useScreenRecorder`*
 - [x] Add `RecordingControls` bar with: timer, webcam toggle, stop button — *Phase 0; cancel button not yet exposed*
@@ -526,7 +530,7 @@ RECORDINGS_DIR=../recordings
 TMP_DIR=../tmp
 DB_PATH=../db/screendeck.db
 
-# FFmpeg binary path (leave empty to use system PATH)
+# FFmpeg binary path (optional — defaults to npm-bundled ffmpeg-static)
 FFMPEG_PATH=
 
 # Max upload size in bytes (default 2GB)
@@ -579,7 +583,7 @@ These are hard limits the implementation must respect:
 | **No cloud** | All files stay on the server's local disk. No S3, no CDN. |
 | **No edit features** | No trim, no cut, no annotations in MVP |
 | **MP4 only** | Always convert WebM → MP4 server-side. Never expose .webm to the frontend. |
-| **FFmpeg required** | Must be installed on the server. App should fail fast with a clear error if not found at startup. |
+| **FFmpeg required** | Bundled via `ffmpeg-static` on `npm install`; override with `FFMPEG_PATH`. App fails fast at startup if the binary is missing. |
 | **Range requests required** | The `/stream` endpoint must support `Range` headers or `<video>` seeking will not work. |
 | **No in-memory blob storage** | Large recordings must go to disk via multer, not buffered in memory. |
 | **Canvas compositing only** | The webcam PiP must be composited on the canvas before passing to MediaRecorder — not as a separate track — to guarantee a single video output. |

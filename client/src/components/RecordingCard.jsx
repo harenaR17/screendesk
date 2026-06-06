@@ -27,7 +27,13 @@ function IconButton({ label, onClick, children, danger }) {
   );
 }
 
-export default function RecordingCard({ recording, onPlay, onRename, onDelete }) {
+export default function RecordingCard({
+  recording,
+  highlighted = false,
+  onPlay,
+  onRename,
+  onDelete,
+}) {
   const isProcessing = recording.status === 'processing';
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(recording.title);
@@ -59,7 +65,12 @@ export default function RecordingCard({ recording, onPlay, onRename, onDelete })
   return (
     <div
       className="flex flex-col transition-all duration-150"
-      style={{ background: 'var(--bg-surface)', boxShadow: '0 0 0 1px var(--border)' }}
+      style={{
+        background: 'var(--bg-surface)',
+        boxShadow: highlighted
+          ? '0 0 0 2px var(--accent)'
+          : '0 0 0 1px var(--border)',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

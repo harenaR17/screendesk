@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useRecordings } from '../hooks/useRecordings.js';
 import RecordingCard from '../components/RecordingCard.jsx';
 import EmptyState from '../components/EmptyState.jsx';
@@ -25,10 +25,18 @@ function SkeletonCard() {
 
 export default function LibraryPage() {
   const navigate = useNavigate();
-  const { recordings, loading, deleteRecording, renameRecording } =
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('highlight');
+  const { recordings, loading, deleteRecording, renameRecording, refetch } =
     useRecordings();
   const [playing, setPlaying] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
+
+  useEffect(() => {
+    if (highlightId) {
+      refetch();
+    }
+  }, [highlightId, refetch]);
 
   const startRecording = () => navigate('/record');
 
@@ -92,6 +100,7 @@ export default function LibraryPage() {
             <RecordingCard
               key={rec.id}
               recording={rec}
+              highlighted={rec.id === highlightId}
               onPlay={setPlaying}
               onRename={renameRecording}
               onDelete={setPendingDelete}

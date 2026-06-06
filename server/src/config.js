@@ -1,6 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import bundledFfmpegPath from 'ffmpeg-static';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT_DIR = path.resolve(__dirname, '../..');
@@ -18,4 +19,5 @@ export const config = {
   recordingsDir: resolvePath(process.env.RECORDINGS_DIR, 'recordings'),
   tmpDir: resolvePath(process.env.TMP_DIR, 'tmp'),
   dbPath: resolvePath(process.env.DB_PATH, 'db/screendeck.db'),
+  ffmpegPath: process.env.FFMPEG_PATH || bundledFfmpegPath,
 };
