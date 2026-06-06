@@ -1,33 +1,47 @@
-# v0-screendeck-frontend-build
+# ScreenDeck
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+A self-hosted, local-first screen recording web app inspired by Loom.
 
-## Built with v0
+## Prerequisites
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+- Node.js 22.4+ (uses the built-in `node:sqlite` module for metadata storage)
+- npm 10+
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_An7NrEcYYc2R5U6SbksiIr9ggrRt)
-
-## Getting Started
-
-First, run the development server:
+## Getting started
 
 ```bash
+# Install dependencies (client + server workspaces)
+npm install
+
+# Copy environment template
+cp .env.example .env
+
+# Start API server (:3000) and Vite dev server (:5173)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Library UI:** http://localhost:5173
+- **API health:** http://localhost:3000/api/health
+- **Recordings list:** http://localhost:3000/api/recordings
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure
 
-## Learn More
+```
+screendeck/
+├── client/          # React + Vite frontend
+├── server/          # Express 5 API + SQLite
+├── recordings/      # MP4 files (gitignored, created at runtime)
+├── tmp/             # Temp uploads (gitignored, created at runtime)
+├── db/              # SQLite database (gitignored, created at runtime)
+└── .env.example     # Environment template
+```
 
-To learn more, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start client and server concurrently |
+| `npm run build` | Build client for production |
+| `npm run start` | Run production API server |
+
+See `screendesk_implementation_plan.md` for the full build roadmap.
