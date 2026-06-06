@@ -1,13 +1,48 @@
-import { useState, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
-// Stub only — just a boolean toggle for now.
-// TODO: wire up real getUserMedia for the webcam stream
 export function useWebcam() {
   const [webcamEnabled, setWebcamEnabled] = useState(false);
+  const [webcamStream, setWebcamStream] = useState(null);
+  const streamRef = useRef(null);
 
-  const toggleWebcam = useCallback(() => {
-    setWebcamEnabled((v) => !v);
+  const stopWebcam = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setWebcamStream(null);
+    setWebcamEnabled(false);
   }, []);
 
-  return { webcamEnabled, toggleWebcam };
+  const startWebcam = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+      streamRef.current = stream;
+      setWebcamStream(stream);
+      setWebcamEnabled(true);
+      return stream;
+    } catch {
+      streamRef.current = null;
+      setWebcamStream(null);
+      setWebcamEnabled(false);
+      return null;
+    }
+  }, []);
+
+  const toggleWebcam = useCallback(async () => {
+    if (webcamEnabled) {
+      stopWebcam();
+    } else {
+      await startWebcam();
+    }
+  }, [webcamEnabled, startWebcam, stopWebcam]);
+
+  return {
+    webcamEnabled,
+    webcamStream,
+    toggleWebcam,
+    startWebcam,
+    stopWebcam,
+  };
 }
