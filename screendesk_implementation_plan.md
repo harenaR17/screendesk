@@ -332,22 +332,55 @@ Poll processing status while FFmpeg runs.
 
 > Each phase is independently shippable. Complete all checklist items before moving to the next phase.
 
+**Current progress (2026-06-06):** Phase 0 complete. Phase 1 complete (monorepo, Express server, SQLite, `GET /api/recordings`). Phases 2–3 not started. Phase 4 library UI complete with mocked API. Phase 5 partially complete (UI polish from Phase 0). Phase 6 not started. **Next up:** Phase 2 — real screen/webcam capture, or wire `api.js` to the live backend.
+
 ---
 
-### Phase 1 — Project Scaffold & Server Foundation
+### Phase 0 — Frontend UI Scaffold (Mocked) ✅
+
+**Goal:** Fully navigable React UI with mocked API and stubbed recorder hooks — no backend, no real MediaRecorder.
+
+> Completed via `front_end_build_prompt.md` (verified 2026-06-06). Maps forward to Phase 4 (library UI) and parts of Phase 5 (polish), but all data flows through in-memory mocks.
+
+- [x] Scaffold React 18 + Vite frontend with Tailwind CSS v3 and React Router v6
+- [x] Design system: CSS variables, DM Serif Display + DM Mono fonts, dark theme
+- [x] Mock data (`mockData.js`) with 5 sample recordings including one `processing` row
+- [x] Mock API layer (`api.js`) — fetch, delete, rename, upload with artificial delays
+- [x] `useRecordings` hook wrapping mocked API
+- [x] `useScreenRecorder` stub — idle → countdown → recording → uploading → done state machine
+- [x] `useWebcam` stub — boolean toggle only
+- [x] `LibraryPage` — header, recording count, responsive grid, skeleton loading, empty state
+- [x] `RecordPage` — all five recorder UI states, webcam preview inset, control bar
+- [x] `RecordingCard` — thumbnail placeholder, webcam badge, ENCODING overlay, inline rename, play/delete
+- [x] `VideoPlayer` modal — sample MP4 playback, download link, ESC/backdrop close
+- [x] `EmptyState`, `ConfirmDialog`, `StatusBadge`, `RecordingControls`
+- [x] `formatters.js` — duration, file size, date
+- [x] Vite dev-server proxy `/api` → `localhost:3000` (ready for backend)
+- [x] Favicon and responsive layout (1 / 2 / 3 column grid)
+
+**Structural note:** Frontend files live at the repo root (`src/`, `index.html`, etc.) rather than in a `client/` subdirectory. A `client/` folder will be introduced when the monorepo is set up in Phase 1, or the plan can be updated to keep the flat layout.
+
+**Not in scope (deferred to later phases):**
+- Real `getDisplayMedia` / `getUserMedia` / `MediaRecorder` / canvas compositing
+- Real uploads or server API calls
+- `uploadRecording` is defined in `api.js` but not yet wired from `useScreenRecorder.stopRecording()`
+
+---
+
+### Phase 1 — Project Scaffold & Server Foundation ✅
 
 **Goal:** Bare project running locally with a working Express server.
 
-- [ ] Initialise monorepo root with `package.json` (workspaces: client, server)
-- [ ] Scaffold `server/` with Express 5 + `better-sqlite3` + `multer` + `uuid`
-- [ ] Create SQLite DB and run `CREATE TABLE recordings` migration on startup
-- [ ] Implement `GET /api/recordings` returning empty array
-- [ ] Scaffold `client/` with `npm create vite@latest` (React + JS template)
-- [ ] Install and configure Tailwind CSS in the client
-- [ ] Add Vite proxy: `/api` → `http://localhost:3000` in `vite.config.js`
-- [ ] Verify: `npm run dev` starts both client (5173) and server (3000)
-- [ ] Add `.env.example` with `PORT`, `RECORDINGS_DIR`, `TMP_DIR`, `DB_PATH`
-- [ ] Add `recordings/` and `tmp/` to `.gitignore`
+- [x] Initialise monorepo root with `package.json` (workspaces: client, server)
+- [x] Scaffold `server/` with Express 5 + `multer` + `uuid` — *SQLite via Node built-in `node:sqlite` (Node 22.4+); `better-sqlite3` deferred to Docker/Linux where native prebuilds are available*
+- [x] Create SQLite DB and run `CREATE TABLE recordings` migration on startup
+- [x] Implement `GET /api/recordings` returning empty array
+- [x] Scaffold frontend with `npm create vite@latest` (React + JS template) — *moved to `client/` workspace*
+- [x] Install and configure Tailwind CSS — *Phase 0*
+- [x] Add Vite proxy: `/api` → `http://localhost:3000` in `vite.config.js` — *Phase 0*
+- [x] Verify: `npm run dev` starts both client (5173) and server (3000)
+- [x] Add `.env.example` with `PORT`, `RECORDINGS_DIR`, `TMP_DIR`, `DB_PATH`
+- [x] Add `recordings/` and `tmp/` to `.gitignore`
 
 ---
 
@@ -415,26 +448,27 @@ Poll processing status while FFmpeg runs.
 - [ ] Implement `GET /api/recordings/:id/stream` with byte-range support:
   - [ ] Use `fs.stat` + `res.setHeader('Content-Type', 'video/mp4')`
   - [ ] Parse `Range` header and respond with `206 Partial Content`
-- [ ] Build `useRecordings.js` hook:
-  - [ ] `fetchAll()` on mount, returns list
-  - [ ] `deleteRecording(id)` calls `DELETE /api/recordings/:id`
-  - [ ] `renameRecording(id, title)` calls `PATCH /api/recordings/:id`
-- [ ] Build `LibraryPage.jsx`:
-  - [ ] Responsive grid (3 cols desktop, 2 cols tablet, 1 col mobile)
-  - [ ] `RecordingCard` for each recording with: title, date, duration, file size, webcam badge
-  - [ ] Loading skeleton while fetching
-  - [ ] `EmptyState` component when list is empty
-- [ ] Build `RecordingCard.jsx`:
-  - [ ] Inline rename on title click (contentEditable or input toggle)
-  - [ ] Play button → opens `VideoPlayer` modal
-  - [ ] Delete button → confirmation dialog → delete
-- [ ] Build `VideoPlayer.jsx`:
-  - [ ] Full-screen overlay modal
-  - [ ] `<video controls autoPlay>` with `/api/recordings/:id/stream` as src
-  - [ ] Title, date, duration, size display
-  - [ ] Download button (`<a download href="...">`)
-  - [ ] Close on ESC keypress or backdrop click
-- [ ] Verify: recordings list loads, videos play and seek correctly, rename and delete work
+- [x] Build `useRecordings.js` hook — *Phase 0 (mocked API; swap `api.js` for real fetch when backend is ready)*
+  - [x] `fetchAll()` on mount, returns list
+  - [x] `deleteRecording(id)` — *mocked DELETE*
+  - [x] `renameRecording(id, title)` — *mocked PATCH*
+- [x] Build `LibraryPage.jsx` — *Phase 0*
+  - [x] Responsive grid (3 cols desktop, 2 cols tablet, 1 col mobile)
+  - [x] `RecordingCard` for each recording with: title, date, duration, file size, webcam badge
+  - [x] Loading skeleton while fetching
+  - [x] `EmptyState` component when list is empty
+- [x] Build `RecordingCard.jsx` — *Phase 0*
+  - [x] Inline rename on title click (input toggle)
+  - [x] Play button → opens `VideoPlayer` modal
+  - [x] Delete button → confirmation dialog → delete
+- [x] Build `VideoPlayer.jsx` — *Phase 0 UI; uses sample MP4 URL, not API stream*
+  - [x] Full-screen overlay modal
+  - [ ] `<video controls autoPlay>` with `/api/recordings/:id/stream` as src — *uses `w3schools.com` sample MP4 for now*
+  - [x] Title, date, duration, size display
+  - [x] Download button (`<a download href="...">`)
+  - [x] Close on ESC keypress or backdrop click
+- [x] Verify: recordings list loads, rename and delete work — *Phase 0 with mocks*
+- [ ] Verify: videos play and seek correctly against real `/api/recordings/:id/stream`
 
 ---
 
@@ -444,15 +478,15 @@ Poll processing status while FFmpeg runs.
 
 - [ ] Show error toast if screen capture permission is denied
 - [ ] Show error toast if microphone permission is denied (and allow recording without mic)
-- [ ] Handle FFmpeg conversion failure: show error badge on card, allow deletion
-- [ ] Show upload progress bar during large file uploads
+- [ ] Handle FFmpeg conversion failure: show error badge on card, allow deletion — *`StatusBadge` component exists; not wired to real error state yet*
+- [x] Show upload progress bar during large file uploads — *Phase 0 UI animation on RecordPage `uploading` state (mock)*
 - [ ] Prevent navigating away during an active recording (browser `beforeunload` warning)
-- [ ] Add recording countdown (3-2-1) before capture starts
-- [ ] Add `RecordingControls` bar with: timer, webcam toggle, cancel button, stop button
-- [ ] Format durations as `MM:SS` and file sizes as `X.X MB`
+- [x] Add recording countdown (3-2-1) before capture starts — *Phase 0 stub in `useScreenRecorder`*
+- [x] Add `RecordingControls` bar with: timer, webcam toggle, stop button — *Phase 0; cancel button not yet exposed*
+- [x] Format durations as `MM:SS` and file sizes as `X.X MB` — *Phase 0 `formatters.js`*
 - [ ] Add page title updates (`<title>Recording… | ScreenDeck`)
-- [ ] Add favicon
-- [ ] Mobile-responsive layout check (even if primarily desktop use)
+- [x] Add favicon — *Phase 0 (`public/favicon.ico`, `public/icon.svg`)*
+- [x] Mobile-responsive layout check (even if primarily desktop use) — *Phase 0*
 - [ ] Verify: test all error paths manually
 
 ---
